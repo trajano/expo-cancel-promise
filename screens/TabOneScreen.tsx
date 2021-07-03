@@ -8,18 +8,28 @@ import { StyleSheet } from "react-native";
 import EditScreenInfo from "../components/EditScreenInfo";
 import { Text, View } from "../components/Themed";
 
-function useAsyncStateChangeEffect<T>(
-  asyncFunction: () => Promise<T>,
-  setStatesFunction: (asyncResult: T) => void,
+/**
+ * This starts an async function and executes another function that performs
+ * React state changes if the component is still mounted after the async
+ * operation completes
+ * @param asyncFn async function that will be executed
+ * @param onSuccess this gets executed after async function is resolved and
+ *  the component is still mounted the result of the async function is passed
+ *  in as the parameter
+ * @param deps dependencies, asyncFn and onSuccess are added in by default.
+ */
+function useAsync<T>(
+  asyncFn: (moutedRef: React.MutableRefObject<boolean>) => Promise<T>,
+  onSuccess: (asyncResult: T) => void,
   deps: React.DependencyList
 ) {
   const mountedRef = useRef(false);
   useEffect(() => {
     mountedRef.current = true;
     (async () => {
-      const x = await asyncFunction();
+      const x = await asyncFn(mountedRef);
       if (mountedRef.current) {
-        setStatesFunction(x);
+        onSuccess(x);
       }
     })();
     return () => {
@@ -38,15 +48,24 @@ const Blah = () => {
   //   return () => clearTimeout(x)
   // }, [])
   console.log("Render");
-  useAsyncStateChangeEffect(
-    async () => {
-      console.log(1);
+  useAsync(
+    async (mountedRef) => {
+      console.log(1, mountedRef);
       await sleep(1);
-      console.log(2);
+      if (!mountedRef.current) {
+        return;
+      }
+      console.log(2, mountedRef);
       await sleep(1);
-      console.log(3);
+      if (!mountedRef.current) {
+        return;
+      }
+      console.log(3, mountedRef);
       await sleep(1);
-      console.log(4);
+      if (!mountedRef.current) {
+        return;
+      }
+      console.log(4, mountedRef);
       return Date.now();
     },
     (now) => {
